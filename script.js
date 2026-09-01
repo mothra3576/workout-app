@@ -284,7 +284,10 @@ function deleteSelectedExercise(name = exerciseSelect.value) {
 function estimatedRm(weight, reps) {
   const w = Number(weight);
   const r = Number(reps);
-  return w > 0 && r > 0 ? `${(w * (1 + r / 30)).toFixed(1)}kg RM` : "";
+  if (!(w > 0) || !(r > 0)) return "";
+  // 1回挙げた重量は、その記録自体を1RMとして扱う。
+  const rm = r === 1 ? w : w * (1 + r / 30);
+  return `${rm.toFixed(1)}kg RM`;
 }
 
 function workoutLoad(item) {
