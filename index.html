@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="description" content="カレンダーで筋トレを記録・分析できる自分専用アプリ" />
+    <title>My Workout Log</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <main class="app-shell tab-layout">
+      <section id="panel-home" class="tab-panel active" data-panel="home">
+        <header class="mobile-header"><div><p class="eyebrow">MY WORKOUT</p><h1>ホーム</h1></div><span id="home-today"></span></header>
+        <section class="card home-calendar" aria-labelledby="calendar-title">
+          <div class="calendar-heading">
+            <h2 id="calendar-title" class="visually-hidden">トレーニングカレンダー</h2>
+            <div class="calendar-nav"><button id="prev-month" type="button" aria-label="前の月">←</button><strong id="calendar-month"></strong><button id="next-month" type="button" aria-label="次の月">→</button></div>
+          </div>
+          <div class="weekdays" aria-hidden="true"><span>日</span><span>月</span><span>火</span><span>水</span><span>木</span><span>金</span><span>土</span></div>
+          <div id="calendar-grid" class="calendar-grid"></div>
+        </section>
+        <section class="home-metrics">
+          <article class="load-card"><span>合計負荷量 / 今週（月〜日）</span><strong id="current-week-load">0</strong><small>t</small></article>
+          <article class="chart-card"><div class="chart-heading"><h2>週間負荷量</h2><span>今週〜5週間前</span></div><div id="weekly-chart" class="weekly-chart" aria-label="6週間の合計負荷量"></div></article>
+        </section>
+      </section>
+
+      <section id="panel-training" class="tab-panel" data-panel="training" hidden>
+        <header class="mobile-header"><div><p class="eyebrow">TRAINING</p><h1>トレーニング</h1></div></header>
+        <section class="card form-card" aria-labelledby="form-title">
+          <div class="section-heading"><h2 id="form-title">種目を記録</h2><div class="date-picker"><span>日付</span><button id="training-date-button" class="date-picker-button" type="button"></button><div id="training-mini-calendar" class="mini-calendar" hidden></div></div></div>
+          <form id="workout-form" novalidate>
+            <label class="field field-wide"><span>部位</span><select id="category"><option>胸</option><option>背中</option><option>足</option><option>肩</option><option>腕</option><option>腹筋</option><option>有酸素</option><option>その他</option></select></label>
+            <div class="field field-wide"><span>種目名を選択</span><div class="exercise-dropdown"><button id="exercise-trigger" class="exercise-trigger" type="button" aria-expanded="false"><span>種目名を選択</span><span aria-hidden="true">⌄</span></button><div id="exercise-menu" class="exercise-menu" hidden></div><select id="exercise-select" hidden aria-hidden="true" tabindex="-1"></select></div></div>
+            <label id="new-exercise-field" class="field field-wide"><span>新しい種目名</span><input id="exercise" type="text" autocomplete="off" placeholder="種目名を入力" /></label>
+            <aside id="previous-workout" class="previous-workout" hidden><span>前回の記録</span><strong id="previous-workout-date"></strong><p id="previous-workout-sets"></p></aside>
+            <div class="set-section"><div class="set-section-heading"><span>セット内容</span></div><div id="set-list" class="set-list"></div><button id="add-set-button" class="add-set-button" type="button">＋ セットを追加</button></div>
+            <div class="autosave-bar"><span id="save-status" hidden></span><button id="new-workout-button" type="button">＋ 次の種目を入力</button></div>
+          </form>
+        </section>
+      </section>
+
+      <section id="panel-history" class="tab-panel" data-panel="history" hidden>
+        <header class="mobile-header"><div><p class="eyebrow">HISTORY</p><h1>履歴</h1></div></header>
+        <section class="card log-card" aria-labelledby="log-title">
+          <div class="history-date-picker"><div class="date-picker"><span>表示する日付</span><button id="history-date-button" class="date-picker-button" type="button"></button><div id="history-mini-calendar" class="mini-calendar" hidden></div></div></div>
+          <div class="section-heading log-heading"><div><h2 id="log-title"><span id="history-date"></span>の記録</h2></div><div class="history-summary"><div><strong id="total-exercises">0</strong><span>合計種目数</span></div><div><strong id="history-total-load">0</strong><span>合計負荷量 / t</span></div></div></div>
+          <p id="empty-message" class="empty-message">この日の記録はありません。<br />カレンダーで日付を選ぶか、トレーニングから追加しましょう。</p>
+          <ul id="workout-list" class="workout-list" aria-label="トレーニング記録"></ul>
+        </section>
+      </section>
+
+      <section id="panel-analysis" class="tab-panel" data-panel="analysis" hidden>
+        <header class="mobile-header"><div><p class="eyebrow">ANALYSIS</p><h1>分析</h1></div></header>
+        <div id="analysis-category-tabs" class="analysis-tabs" role="tablist" aria-label="分析する部位"></div>
+        <section id="analysis-overall" class="analysis-content">
+          <article class="card analysis-card">
+            <div class="chart-heading"><h2>今週の部位別合計負荷量</h2><span>月曜日〜日曜日・重量 × 回数</span></div>
+            <div id="analysis-bodypart-bars" class="analysis-horizontal-bars" aria-label="部位別合計負荷量"></div>
+          </article>
+          <article class="card analysis-distance-card">
+            <div><span>有酸素 / 今週（月〜日）</span><small>合計距離</small></div>
+            <p><strong id="analysis-cardio-distance">0</strong><span>km</span></p>
+          </article>
+        </section>
+        <section id="analysis-specific" class="analysis-content" hidden>
+          <article class="card analysis-card">
+            <div class="chart-heading"><h2 id="analysis-specific-title">日付別の記録</h2><span id="analysis-specific-unit"></span></div>
+            <div id="analysis-date-chart" class="analysis-date-chart" aria-label="日付別の記録グラフ"></div>
+            <p id="analysis-empty" class="empty-message" hidden>この部位の記録はまだありません。</p>
+          </article>
+        </section>
+      </section>
+
+      <section id="panel-settings" class="tab-panel" data-panel="settings" hidden>
+        <header class="mobile-header"><div><p class="eyebrow">SETTINGS</p><h1>設定</h1></div></header>
+        <section class="card settings-card">
+          <div><h2>表示テーマ</h2><p>アプリ全体の明るさを変更できます。</p></div>
+          <label class="field"><span>カラーモード</span><select id="theme-select"><option value="light">ライトモード</option><option value="dark">ダークモード</option></select></label>
+        </section>
+        <section class="card settings-card sync-settings">
+          <div><h2>Googleスプレッドシート</h2><p id="connection-status">接続設定を確認しています。</p></div>
+          <button id="retry-sync-button" class="add-set-button" type="button">データを再取得</button>
+        </section>
+      </section>
+    </main>
+
+    <nav class="bottom-tabs" aria-label="メインメニュー">
+      <button class="active" type="button" data-tab="home"><span aria-hidden="true">⌂</span><small>ホーム</small></button>
+      <button type="button" data-tab="training"><span aria-hidden="true">＋</span><small>トレーニング</small></button>
+      <button type="button" data-tab="history"><span aria-hidden="true">▤</span><small>履歴</small></button>
+      <button type="button" data-tab="analysis"><span aria-hidden="true">↗</span><small>分析</small></button>
+      <button type="button" data-tab="settings"><span aria-hidden="true">⚙</span><small>設定</small></button>
+    </nav>
+    <p id="sync-error" class="sync-error" role="alert" hidden></p>
+    <script src="config.js"></script>
+    <script src="script.js"></script>
+  </body>
+</html>
