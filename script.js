@@ -526,6 +526,200 @@ function switchTab(tabName) {
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
+let timerInterval = null;
+let timerState = "idle";
+let timerInitialSeconds = 120;
+let timerRemainingSeconds = 120;
+let timerEndsAt = 0;
+let timerAudioContext = null;
+let timerSoundEnabled = true;
+let timerSoundPlayed = false;
+
+function prepareTimerAudio() {
+  if (!timerSoundEnabled) return;
+  try {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return;
+    if (!timerAudioContext || timerAudioContext.state === "closed") timerAudioContext = new AudioContextClass();
+
+    // iOSのユーザー操作制限に対応するため、操作中に無音の発振器を開始して音声を準備する。
+    const oscillator = timerAudioContext.createOscillator();
+    const gain = timerAudioContext.createGain();
+    gain.gain.setValueAtTime(0, timerAudioContext.currentTime);
+    oscillator.connect(gain);
+    gain.connect(timerAudioContext.destination);
+    oscillator.start(timerAudioContext.currentTime);
+    oscillator.stop(timerAudioContext.currentTime + 0.01);
+
+    if (timerAudioContext.state === "suspended") {
+      const resumeResult = timerAudioContext.resume();
+      if (resumeResult && typeof resumeResult.catch === "function") resumeResult.catch(() => {});
+    }
+  } catch (error) {
+    // 音声が使えなくてもタイマーと記録処理は継続する。
+  }
+}
+
+function scheduleTimerBeep(context, startTime, duration, frequency) {
+  const oscillator = context.createOscillator();
+  const gain = context.createGain();
+  const attackEnd = startTime + 0.015;
+  const releaseStart = Math.max(attackEnd, startTime + duration - 0.035);
+  oscillator.type = "sine";
+  oscillator.frequency.setValueAtTime(frequency, startTime);
+  gain.gain.setValueAtTime(0.0001, startTime);
+  gain.gain.exponentialRampToValueAtTime(0.11, attackEnd);
+  gain.gain.setValueAtTime(0.11, releaseStart);
+  gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+  oscillator.connect(gain);
+  gain.connect(context.destination);
+  oscillator.start(startTime);
+  oscillator.stop(startTime + duration + 0.02);
+}
+
+function playTimerEndSound() {
+  if (!timerSoundEnabled || !timerAudioContext) return;
+  try {
+    const play = () => {
+      try {
+        const start = timerAudioContext.currentTime + 0.04;
+        scheduleTimerBeep(timerAudioContext, start, 0.17, 720);
+        scheduleTimerBeep(timerAudioContext, start + 0.33, 0.17, 720);
+        scheduleTimerBeep(timerAudioContext, start + 0.66, 0.65, 680);
+      } catch (error) {
+        // 音声生成の失敗はタイマー終了処理へ影響させない。
+      }
+    };
+    if (timerAudioContext.state === "suspended") {
+      const resumeResult = timerAudioContext.resume();
+      if (resumeResult && typeof resumeResult.then === "function") resumeResult.then(play).catch(() => {});
+    } else if (timerAudioContext.state === "running") {
+      play();
+    }
+  } catch (error) {
+    // Web Audio API非対応時もタイマー本体は正常に終了する。
+  }
+}
+
+function readTimerInputs() {
+  const minutes = Math.max(0, Math.floor(Number($("#timer-minutes").value) || 0));
+  const seconds = Math.max(0, Math.floor(Number($("#timer-seconds").value) || 0));
+  return minutes * 60 + seconds;
+}
+
+function setTimerInputs(totalSeconds) {
+  $("#timer-minutes").value = String(Math.floor(totalSeconds / 60));
+  $("#timer-seconds").value = String(totalSeconds % 60);
+}
+
+function formatTimer(totalSeconds) {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
+
+function renderTimer() {
+  $("#timer-display").textContent = formatTimer(timerRemainingSeconds);
+  $("#timer-sound-enabled").checked = timerSoundEnabled;
+  $("#timer-sound-state").textContent = timerSoundEnabled ? "ON" : "OFF";
+  $("#timer-start").disabled = timerState === "running" || timerState === "paused";
+  $("#timer-pause").disabled = timerState !== "running";
+  $("#timer-resume").disabled = timerState !== "paused";
+  $("#timer-minutes").disabled = timerState === "running" || timerState === "paused";
+  $("#timer-seconds").disabled = timerState === "running" || timerState === "paused";
+}
+
+function stopTimerInterval() {
+  if (timerInterval !== null) window.clearInterval(timerInterval);
+  timerInterval = null;
+}
+
+function finishTimer() {
+  if (timerState === "finished") return;
+  stopTimerInterval();
+  timerRemainingSeconds = 0;
+  timerState = "finished";
+  const status = $("#timer-status");
+  status.textContent = "休憩終了";
+  status.classList.add("finished");
+  renderTimer();
+  if (!timerSoundPlayed) {
+    timerSoundPlayed = true;
+    playTimerEndSound();
+  }
+  if (typeof navigator.vibrate === "function") {
+    try { navigator.vibrate([150, 80, 150]); } catch (error) { /* 非対応ブラウザでは何もしない */ }
+  }
+}
+
+function updateTimerCountdown() {
+  timerRemainingSeconds = Math.max(0, Math.ceil((timerEndsAt - Date.now()) / 1000));
+  if (timerRemainingSeconds === 0) finishTimer();
+  else renderTimer();
+}
+
+function runTimer() {
+  timerEndsAt = Date.now() + timerRemainingSeconds * 1000;
+  timerState = "running";
+  $("#timer-status").textContent = "カウント中";
+  $("#timer-status").classList.remove("finished");
+  stopTimerInterval();
+  timerInterval = window.setInterval(updateTimerCountdown, 1000);
+  renderTimer();
+}
+
+function startTimer() {
+  prepareTimerAudio();
+  const inputSeconds = readTimerInputs();
+  if (inputSeconds <= 0) {
+    $("#timer-status").textContent = "1秒以上の時間を入力してください";
+    $("#timer-status").classList.remove("finished");
+    return;
+  }
+  timerInitialSeconds = inputSeconds;
+  timerRemainingSeconds = inputSeconds;
+  timerSoundPlayed = false;
+  setTimerInputs(inputSeconds);
+  runTimer();
+}
+
+function pauseTimer() {
+  if (timerState !== "running") return;
+  updateTimerCountdown();
+  if (timerState === "finished") return;
+  stopTimerInterval();
+  timerState = "paused";
+  $("#timer-status").textContent = "一時停止中";
+  renderTimer();
+}
+
+function resumeTimer() {
+  if (timerState !== "paused" || timerRemainingSeconds <= 0) return;
+  runTimer();
+}
+
+function resetTimer() {
+  stopTimerInterval();
+  timerState = "idle";
+  timerRemainingSeconds = timerInitialSeconds;
+  timerSoundPlayed = false;
+  setTimerInputs(timerInitialSeconds);
+  $("#timer-status").textContent = "";
+  $("#timer-status").classList.remove("finished");
+  renderTimer();
+}
+
+function updateTimerFromInputs() {
+  if (timerState === "running" || timerState === "paused") return;
+  timerInitialSeconds = readTimerInputs();
+  timerRemainingSeconds = timerInitialSeconds;
+  timerSoundPlayed = false;
+  timerState = "idle";
+  $("#timer-status").textContent = "";
+  $("#timer-status").classList.remove("finished");
+  renderTimer();
+}
+
 function renumberSets() {
   const rows = [...setList.querySelectorAll(".set-row")];
   rows.forEach((row, index) => {
@@ -838,6 +1032,20 @@ $("#new-workout-button").addEventListener("click", () => { resetEntry(); exercis
 $("#prev-month").addEventListener("click", () => { calendarDate.setMonth(calendarDate.getMonth() - 1); renderCalendar(); });
 $("#next-month").addEventListener("click", () => { calendarDate.setMonth(calendarDate.getMonth() + 1); renderCalendar(); });
 document.querySelectorAll(".bottom-tabs button").forEach((button) => button.addEventListener("click", () => switchTab(button.dataset.tab)));
+$("#timer-start").addEventListener("click", startTimer);
+$("#timer-pause").addEventListener("click", pauseTimer);
+$("#timer-resume").addEventListener("click", resumeTimer);
+$("#timer-reset").addEventListener("click", resetTimer);
+$("#timer-minutes").addEventListener("input", updateTimerFromInputs);
+$("#timer-seconds").addEventListener("input", updateTimerFromInputs);
+$("#timer-sound-enabled").addEventListener("change", (event) => {
+  timerSoundEnabled = event.currentTarget.checked;
+  if (timerSoundEnabled) prepareTimerAudio();
+  renderTimer();
+});
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && timerState === "running") updateTimerCountdown();
+});
 const savedTheme = localStorage.getItem("workoutTheme") || "light";
 document.documentElement.dataset.theme = savedTheme;
 $("#theme-select").value = savedTheme;
@@ -851,4 +1059,4 @@ window.addEventListener("resize", () => {
 });
 $("#retry-sync-button").addEventListener("click", loadRemoteWorkouts);
 $("#home-today").textContent = new Intl.DateTimeFormat("ja-JP", { month: "short", day: "numeric", weekday: "short" }).format(new Date());
-persist(); updateMenuOptions(); updateExerciseInputVisibility(); addSet(); renderAll(); switchTab("home"); void loadRemoteWorkouts();
+persist(); updateMenuOptions(); updateExerciseInputVisibility(); addSet(); renderTimer(); renderAll(); switchTab("home"); void loadRemoteWorkouts();

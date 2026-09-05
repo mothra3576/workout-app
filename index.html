@@ -41,6 +41,28 @@
             <div class="field field-wide"><span>種目名を選択</span><div class="exercise-dropdown"><button id="exercise-trigger" class="exercise-trigger" type="button" aria-expanded="false"><span>種目名を選択</span><span aria-hidden="true">⌄</span></button><div id="exercise-menu" class="exercise-menu" hidden></div><select id="exercise-select" hidden aria-hidden="true" tabindex="-1"></select></div></div>
             <label id="new-exercise-field" class="field field-wide"><span>新しい種目名</span><input id="exercise" type="text" autocomplete="off" placeholder="種目名を入力" /></label>
             <aside id="previous-workout" class="previous-workout" hidden><span>前回の記録</span><strong id="previous-workout-date"></strong><p id="previous-workout-sets"></p></aside>
+            <section class="timer-card" aria-labelledby="rest-timer-title">
+              <div class="timer-heading">
+                <h3 id="rest-timer-title">休憩タイマー</h3>
+                <label class="timer-sound-toggle">
+                  <input id="timer-sound-enabled" type="checkbox" checked aria-label="終了音" />
+                  <span class="timer-switch" aria-hidden="true"></span>
+                  <span>終了音 <strong id="timer-sound-state">ON</strong></span>
+                </label>
+                <output id="timer-display" aria-label="タイマー残り時間">02:00</output>
+              </div>
+              <div class="timer-inputs" aria-label="タイマー時間設定">
+                <label><input id="timer-minutes" type="number" min="0" max="999" step="1" inputmode="numeric" value="2" /><span>分</span></label>
+                <label><input id="timer-seconds" type="number" min="0" max="59" step="1" inputmode="numeric" value="0" /><span>秒</span></label>
+              </div>
+              <p id="timer-status" class="timer-status" role="status" aria-live="polite"></p>
+              <div class="timer-actions">
+                <button id="timer-start" class="timer-primary" type="button">スタート</button>
+                <button id="timer-pause" type="button" disabled>一時停止</button>
+                <button id="timer-resume" type="button" disabled>再開</button>
+                <button id="timer-reset" type="button">リセット</button>
+              </div>
+            </section>
             <div class="set-section"><div class="set-section-heading"><span>セット内容</span></div><div id="set-list" class="set-list"></div><button id="add-set-button" class="add-set-button" type="button">＋ セットを追加</button></div>
             <div class="autosave-bar"><span id="save-status" hidden></span><button id="new-workout-button" type="button">＋ 次の種目を入力</button></div>
           </form>
